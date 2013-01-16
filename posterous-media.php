@@ -12,8 +12,7 @@ License: GPL v2 - http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
 // Inserts a [quicktime] shortcode for video files. Compatible with the video plugin http://wordpress.org/extend/plugins/vipers-video-quicktags/
 function posterous_video_shortcode( $file_url, $post_content ) {
-	$output = $post_content;
-	$output .= '[quicktime width="500" height="285"]' . esc_url( $file_url ) . '[/quicktime]';
+	$output = '[quicktime width="500" height="285"]' . esc_url( $file_url ) . "[/quicktime]\n" . $post_content;
 	return $output;
 }
 add_filter( 'posterous_video_shortcode', 'posterous_video_shortcode', 10, 2 );
@@ -36,7 +35,7 @@ add_filter( 'posterous_audio_shortcode', 'posterous_audio_shortcode', 10, 2 );
  */
 function posterous_get_markup_for_posts_with_images( $matches ) {
 	preg_match_all( '/<img/', $matches[2], $images );
-	if ( count( $images[0] ) > 1 )
+	if ( count( $images[0] ) > 0 )
 		return '[gallery]';
 
 	return $matches[0];
@@ -46,7 +45,8 @@ function posterous_get_markup_for_posts_with_images( $matches ) {
 function posterous_update_post_with_shortcodes( $post, $attachment_id, $url, $media_types ) {
 
 	$audio_video_updated = false;
-	$gallery_update = false;
+	$gallery_updated = false;
+	$pdf_updated = false;
 
 	$video_mime_types = array(
 		'video/mpeg',
@@ -74,6 +74,11 @@ function posterous_update_post_with_shortcodes( $post, $attachment_id, $url, $me
 		$post->post_content = apply_filters( 'posterous_audio_shortcode', $local_url, $post->post_content );
     		$audio_video_updated = true;
 	}
+
+ 	if ( 'pdf' == $file_info['ext'] ) {
+		$post->post_content .= '[gview file="' . esc_url( $local_url ) . '"]';
+		$pdf_updated = true;
+        }
 
 	// Add the [gallery] shortcode for posts that have more than one image in them.
 	$re = '!<div[^>]+class=(\'|")[^(\'|")]*p_embed[^>]+>(.+)</div>!is';
@@ -108,7 +113,7 @@ function posterous_update_post_with_shortcodes( $post, $attachment_id, $url, $me
 		$gallery_updated = true;
 
 	// After all that, if we've actually changed the post content any, update it in the database.	
-	if ( $gallery_updated || $audio_video_updated ) {
+	if ( $pdf_updated || $gallery_updated || $audio_video_updated ) {
 		wp_update_post( $post );
 	}
 }
